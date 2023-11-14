@@ -1,6 +1,7 @@
 package com.script;
 
 import com.script.model.ConfigurationDto;
+import com.script.model.Credit;
 import com.script.model.Invoice;
 import com.script.model.InvoicePayment;
 import com.script.model.Paid;
@@ -25,5 +26,8 @@ public interface HttpClient {
 
     @PostMapping(path = "/account-key/{accountKey}/payment/account-debit")
     Paid payment(@PathVariable("accountKey") String accountKey, InvoicePayment invoicePayment);
+
+    @GetMapping(path = "/account-key/{accountKey}/investments/credit")
+    Credit getCredit(@PathVariable("accountKey") String accountKey);
 
 }

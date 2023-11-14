@@ -24,12 +24,12 @@ public class DueDate {
     private final HttpClient httpClient;
 
     Path pathClientsFile = Paths.get("src", "main", "resources", "files", "clients");
-    Path pathWriterFile = Paths.get("src", "main", "resources", "files", "result");
-    Path pathNotFoundFile = Paths.get("src", "main", "resources", "files", "notFound");
+    Path pathAccountKeys = Paths.get("src", "main", "resources", "files", "accountKeys");
+    Path pathNotFoundFile = Paths.get("src", "main", "resources", "files", "cpfNotFound");
     Path automaticDebitFile = Paths.get("src", "main", "resources", "files", "automaticDebit");
-
     Path invoicePaid = Paths.get("src", "main", "resources", "files", "invoicePaid");
-
+    Path creditAccountPath = Paths.get("src", "main", "resources", "files", "creditAccount");
+    Path creditAccountNotFoundPath = Paths.get("src", "main", "resources", "files", "creditAccountNotFound");
 
     public DueDate(HttpClient httpClient) {
         this.httpClient = httpClient;
@@ -39,8 +39,8 @@ public class DueDate {
     public void getDueDateByCpf() throws IOException {
         List<String> clients = Files.readAllLines(pathClientsFile);
 
-        if (!Files.exists(pathWriterFile)) {
-            Files.createFile(pathWriterFile);
+        if (!Files.exists(pathAccountKeys)) {
+            Files.createFile(pathAccountKeys);
             Files.createFile(pathNotFoundFile);
         }
 
@@ -48,12 +48,9 @@ public class DueDate {
             try {
                 ConfigurationDto configurationData =
                         httpClient.getConfigurationData(client.replaceAll(",", "#"), "status#configuration-completed");
-                if (configurationData.accountConfiguration().isAutomaticDebit()) {
-                    Files.writeString(pathWriterFile, configurationData.taxId() +
-                            "," + configurationData.accountKey() +
-                            "," + configurationData.accountConfiguration().isAutomaticDebit() +
-                            "," + configurationData.accountConfiguration().invoiceDueDay() + "\n", StandardOpenOption.APPEND);
-                }
+                Files.writeString(pathAccountKeys, configurationData.taxId() +
+                        "," + configurationData.accountKey() + "\n", StandardOpenOption.APPEND);
+
             } catch (FeignException.NotFound exception) {
                 try {
                     Files.writeString(pathNotFoundFile, client + "\n", StandardOpenOption.APPEND);
@@ -70,7 +67,7 @@ public class DueDate {
 
     public void filterAutomaticDebit() throws IOException {
         LocalDate.parse("2023-11-10");
-        List<String> clients = Files.readAllLines(pathWriterFile);
+        List<String> clients = Files.readAllLines(pathAccountKeys);
 
         if (!Files.exists(automaticDebitFile)) {
             Files.createFile(automaticDebitFile);
@@ -98,7 +95,6 @@ public class DueDate {
         LOGGER.info("PROCESS FINISH");
     }
 
-
     public void paymentInvoice() throws IOException {
         List<String> clients = Files.readAllLines(automaticDebitFile);
 
@@ -110,7 +106,7 @@ public class DueDate {
             String accountKey = client.split(",")[0];
             BigDecimal valor = new BigDecimal(client.split(",")[2]);
             String faturaId = client.split(",")[3];
-            if (valor.compareTo(BigDecimal.ZERO) > 0){
+            if (valor.compareTo(BigDecimal.ZERO) > 0) {
                 try {
                     Paid payment = httpClient.payment(accountKey, new InvoicePayment(faturaId, valor));
                     LOGGER.info(payment.pagamentoId());
@@ -127,5 +123,36 @@ public class DueDate {
             }
         });
         LOGGER.info("FINISH");
+    }
+
+    public void getCredit() throws IOException {
+        List<String> clients = Files.readAllLines(pathAccountKeys);
+
+        if (!Files.exists(creditAccountPath)) {
+            Files.createFile(creditAccountPath);
+            Files.createFile(creditAccountNotFoundPath);
+        }
+        Files.writeString(creditAccountPath, "accountKey,valorInvestido,limiteCreditoAtual,valorGarantia" + "\n", StandardOpenOption.APPEND);
+
+        clients.forEach(client -> {
+            try {
+                String accountKey = client.split(",")[1];
+                var credit = httpClient.getCredit(accountKey);
+
+                Files.writeString(creditAccountPath, accountKey + ","
+                        + credit.valorInvestido() + ","
+                        + credit.limiteCreditoAtual() + ","
+                        + credit.valorGarantia() + "\n", StandardOpenOption.APPEND);
+            } catch (FeignException.NotFound exception) {
+                try {
+                    Files.writeString(creditAccountNotFoundPath, client + "\n", StandardOpenOption.APPEND);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        LOGGER.info("PROCESS FINISH");
     }
 }
