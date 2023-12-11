@@ -22,6 +22,5 @@ public class ScriptApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        dueDate.paymentInvoice();
     }
 }
