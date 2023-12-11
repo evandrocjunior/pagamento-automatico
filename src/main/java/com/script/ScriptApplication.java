@@ -1,5 +1,6 @@
 package com.script;
 
+import java.time.LocalDate;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -21,6 +22,6 @@ public class ScriptApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        dueDate.getCredit();
+        dueDate.paymentInvoice();
     }
 }
